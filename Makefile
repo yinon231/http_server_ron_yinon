@@ -5,10 +5,10 @@ clean:
 	rm -rf server
 
 server: main.o httpd.o
-	gcc -o server *.c
+	gcc -g -o server *.c
 main.o: main.c httpd.h
-	gcc -c -o main.o main.c
+	gcc -g -c -o main.o main.c
 
 httpd.o: httpd.c httpd.h
-	gcc -c httpd.c  -o httpd.o 
+	gcc -g -c httpd.c  -o httpd.o 
 
