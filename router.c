@@ -15,10 +15,76 @@
 #include <sys/msg.h>
 #define BUF_SIZE 1024
 
-char *users[30] = {
-    "name=ron&psw=1234\0",
-    "name=yinon&psw=12345\0"};
-int user_index = 2;
+#define MAX_LINE_LENGTH 256
+
+// Function to add a new user to the password file
+void add_user(const char *name, const char *password)
+{
+    FILE *file = fopen("password.txt", "a");
+    if (file == NULL)
+    {
+        fprintf(stderr, "Error opening password file: %s\n", strerror(errno));
+        return;
+    }
+
+    fprintf(file, "name=%s&psw=%s\n", name, password);
+    fclose(file);
+}
+
+// Function to verify user credentials
+int verify_user(const char *name, const char *password)
+{
+    FILE *file = fopen("password.txt", "r");
+    if (file == NULL)
+    {
+        fprintf(stderr, "Error opening password file: %s\n", strerror(errno));
+        return 0;
+    }
+
+    char line[MAX_LINE_LENGTH];
+    int auth = 0;
+
+    while (fgets(line, sizeof(line), file))
+    {
+        // Remove newline if present
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n')
+        {
+            line[len - 1] = '\0';
+        }
+
+        char user_copy[MAX_LINE_LENGTH];
+        strncpy(user_copy, line, sizeof(user_copy) - 1);
+        user_copy[sizeof(user_copy) - 1] = '\0';
+
+        char supplied_name[64] = "";
+        char supplied_password[64] = "";
+
+        char *token = strtok(user_copy, "&");
+        while (token != NULL)
+        {
+            if (strncmp(token, "name=", 5) == 0)
+            {
+                strcpy(supplied_name, token + 5);
+            }
+            else if (strncmp(token, "psw=", 4) == 0)
+            {
+                strcpy(supplied_password, token + 4);
+            }
+            token = strtok(NULL, "&");
+        }
+
+        if (strcmp(supplied_name, name) == 0 &&
+            strcmp(supplied_password, password) == 0)
+        {
+            auth = 1;
+            break;
+        }
+    }
+
+    fclose(file);
+    return auth;
+}
 
 void route()
 {
@@ -26,13 +92,42 @@ void route()
     fprintf(stderr, "1\n");
     ROUTE_GET("/eran")
     {
-    }
+        printf("HTTP/1.1 200 OK\r\n\r\n");
+        int fd = open("page3.html", O_RDONLY);
 
-    /*   ROUTE_GET("/")
-       {
-           printf("HTTP/1.1 200 OK\r\n\r\n");
-           printf("Hello! You are using %s", request_header("User-Agent"));
-       }*/
+        int n;
+        char buffer[BUF_SIZE];
+
+        while ((n = read(fd, buffer, BUF_SIZE)) > 0)
+            if (write(STDOUT_FILENO, buffer, n) != n)
+                fprintf(stderr, "Wow write error\n");
+
+        printf("<script>console.log([");
+
+        FILE *file = fopen("password.txt", "r");
+        if (file == NULL)
+        {
+            fprintf(stderr, "Error opening password file: %s\n", strerror(errno));
+            return 0;
+        }
+
+        char line[MAX_LINE_LENGTH];
+
+        while (fgets(line, sizeof(line), file))
+        {
+            // Remove newline if present
+            size_t len = strlen(line);
+            if (len > 0 && line[len - 1] == '\n')
+            {
+                line[len - 1] = '\0';
+            }
+
+            printf("'%s',", line);
+        }
+        printf("]);</script>\n");
+
+        fclose(file);
+    }
 
     ROUTE_GET("/")
     {
@@ -50,14 +145,33 @@ void route()
 
     ROUTE_POST("/")
     {
-        printf("HTTP/1.1 200 OK\r\n\r\n");
-        printf("Wow, seems that you POSTed %d bytes. \r\n", payload_size);
-        printf("Fetch the data using `payload` variable.");
+        printf("HTTP/1.1 303 See Other\r\n");
+        printf("Location: /\r\n");
+        printf("\r\n");
+
+        char name[8] = "";
+        char password[8] = "";
+
+        char *token = strtok(payload, "&");
+        while (token != NULL)
+        {
+            if (strncmp(token, "name=", 5) == 0)
+            {
+                strcpy(name, token + 5);
+            }
+            else if (strncmp(token, "psw=", 4) == 0)
+            {
+                strcpy(password, token + 4);
+            }
+            token = strtok(NULL, "&");
+        }
+
+        // Add user to the password file
+        add_user(name, password);
     }
 
     ROUTE_POST("/pass")
     {
-        printf("HTTP/1.1 200 OK\r\n\r\n");
         char name[8] = "";
         char password[8] = "";
         char supplied_name[8] = "";
@@ -78,41 +192,18 @@ void route()
             token = strtok(NULL, "&");
         }
 
-        for (int i = 0; i < user_index; i++)
-        {
-
-            char user_copy[128];
-            strncpy(user_copy, users[i], sizeof(user_copy) - 1);
-            user_copy[sizeof(user_copy) - 1] = '\0';
-
-            // parse the username and password
-            char *token2 = strtok(user_copy, "&");
-            while (token2 != NULL)
-            {
-                if (strncmp(token2, "name=", 5) == 0)
-                {
-                    strcpy(supplied_name, token2 + 5);
-                }
-                else if (strncmp(token2, "psw=", 4) == 0)
-                {
-                    strcpy(supplied_password, token2 + 4);
-                }
-                token2 = strtok(NULL, "&");
-            }
-            // check if the username and password match
-            if (strcmp(supplied_password, password) == 0 && strcmp(supplied_name, name) == 0)
-            {
-                auth = 1;
-            }
-        }
+        // Verify user credentials
+        auth = verify_user(name, password);
 
         if (auth)
         {
-            printf("authorized access");
+            printf("HTTP/1.1 303 See Other\r\n");
+            printf("Location: /eran\r\n");
         }
         else
         {
-            printf("Unauthorized access.\r\n");
+            printf("HTTP/1.1 403 \r\n\r\n");
+            printf("Wrong password page.\r\n");
         }
     }
 
@@ -128,33 +219,6 @@ void route()
         while ((n = read(fd, buffer, BUF_SIZE)) > 0)
             if (write(STDOUT_FILENO, buffer, n) != n)
                 fprintf(stderr, "Wow write error\n");
-    }
-
-    ROUTE_POST("/register")
-    {
-        printf("HTTP/1.1 200 OK\r\n\r\n");
-        char name[8] = "";
-        char password[8] = "";
-        // parse the payload
-        char *token = strtok(payload, "&");
-        while (token != NULL)
-        {
-            if (strncmp(token, "name=", 5) == 0)
-            {
-                strcpy(name, token + 5);
-            }
-            else if (strncmp(token, "psw=", 4) == 0)
-            {
-                strcpy(password, token + 4);
-            }
-            token = strtok(NULL, "&");
-        }
-
-        // add the new user to the array
-        snprintf(users[user_index], sizeof(users[user_index]), "name=%s&psw=%s", name, password);
-        user_index++;
-
-        printf("User %s registered successfully.\r\n", name);
     }
 
     ROUTE_END()
