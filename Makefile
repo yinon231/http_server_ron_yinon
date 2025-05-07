@@ -1,8 +1,8 @@
 all: server
 
 clean:
-	@rm -rf *.o
-	@rm -rf server
+	rm -rf *.o
+	rm -rf server
 
 server: main.o httpd.o
 	gcc -o server *.c
