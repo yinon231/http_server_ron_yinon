@@ -61,14 +61,17 @@ int verify_user(const char *name, const char *password)
         char supplied_password[64] = "";
 
         char *token = strtok(user_copy, "&");
+    
         while (token != NULL)
         {
             if (strncmp(token, "name=", 5) == 0)
             {
+               
                 strcpy(supplied_name, token + 5);
             }
             else if (strncmp(token, "psw=", 4) == 0)
             {
+               
                 strcpy(supplied_password, token + 4);
             }
             token = strtok(NULL, "&");
@@ -199,6 +202,7 @@ void route()
         {
             printf("HTTP/1.1 303 See Other\r\n");
             printf("Location: /eran\r\n");
+            return;
         }
         else
         {
