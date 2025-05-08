@@ -17,6 +17,41 @@
 
 #define MAX_LINE_LENGTH 256
 
+struct user
+{
+    char name[8];
+    char password[8];
+    int auth;
+};
+
+
+void show_all_password()
+{
+    printf("HTTP/1.1 200 OK\r\n\r\n");
+    printf("Content-Type: text/plain\r\n");
+    printf("\r\n");
+    
+    FILE *file = fopen("password.txt", "r");
+    if (file == NULL)
+    {
+        fprintf(stderr, "Error opening password file: %s\n", strerror(errno));
+    }
+
+    char line[MAX_LINE_LENGTH];
+
+    while (fgets(line, sizeof(line), file))
+    {
+        // Remove newline if present
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n')
+        {
+            line[len - 1] = '\0';
+        }
+
+        fprintf(stderr,"'%s',", line);
+    }
+  
+}
 // Function to add a new user to the password file
 void add_user(const char *name, const char *password)
 {
@@ -88,6 +123,40 @@ int verify_user(const char *name, const char *password)
     fclose(file);
     return auth;
 }
+int pass()
+{
+    struct user userData;
+    userData.auth = 0;
+    strcpy(userData.name, "");
+    strcpy(userData.password, "");
+    // parse the payload
+    char *token = strtok(payload, "&");
+    while (token != NULL)
+    {
+        if (strncmp(token, "name=", 5) == 0)
+        {
+            strcpy(userData.name, token + 5);
+        }
+        else if (strncmp(token, "psw=", 4) == 0)
+        {
+            strcpy(userData.password, token + 4);
+        }
+        token = strtok(NULL, "&");
+    }
+    fprintf(stderr,"auth: %d\n", userData.auth);
+    fprintf(stderr,"auth address: %p\n", &userData.auth);
+    fprintf(stderr,"name address: %p\n", userData.name);
+    fprintf(stderr,"password address: %p\n", userData.password);
+
+    // Verify user credentials
+    if (verify_user(userData.name, userData.password))
+    {
+        userData.auth = 1;
+    }
+    return userData.auth;
+
+}
+
 
 void route()
 {
@@ -105,31 +174,7 @@ void route()
             if (write(STDOUT_FILENO, buffer, n) != n)
                 fprintf(stderr, "Wow write error\n");
 
-        printf("<script>console.log([");
-
-        FILE *file = fopen("password.txt", "r");
-        if (file == NULL)
-        {
-            fprintf(stderr, "Error opening password file: %s\n", strerror(errno));
-            return 0;
-        }
-
-        char line[MAX_LINE_LENGTH];
-
-        while (fgets(line, sizeof(line), file))
-        {
-            // Remove newline if present
-            size_t len = strlen(line);
-            if (len > 0 && line[len - 1] == '\n')
-            {
-                line[len - 1] = '\0';
-            }
-
-            printf("'%s',", line);
-        }
-        printf("]);</script>\n");
-
-        fclose(file);
+        close(fd);
     }
 
     ROUTE_GET("/")
@@ -175,30 +220,8 @@ void route()
 
     ROUTE_POST("/pass")
     {
-        char name[8] = "";
-        char password[8] = "";
-        char supplied_name[8] = "";
-        char supplied_password[8] = "";
-        int auth = 0;
-        // parse the payload
-        char *token = strtok(payload, "&");
-        while (token != NULL)
-        {
-            if (strncmp(token, "name=", 5) == 0)
-            {
-                strcpy(name, token + 5);
-            }
-            else if (strncmp(token, "psw=", 4) == 0)
-            {
-                strcpy(password, token + 4);
-            }
-            token = strtok(NULL, "&");
-        }
-
-        // Verify user credentials
-        auth = verify_user(name, password);
-
-        if (auth)
+      
+        if (pass())
         {
             printf("HTTP/1.1 303 See Other\r\n");
             printf("Location: /eran\r\n");
@@ -227,3 +250,4 @@ void route()
 
     ROUTE_END()
 }
+

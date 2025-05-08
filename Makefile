@@ -5,10 +5,10 @@ clean:
 	rm -rf server
 
 server: main.o httpd.o
-	gcc -g -o server *.c
+	gcc -g -O0 -fno-stack-protector -no-pie -o server *.c
 main.o: main.c httpd.h
-	gcc -g -c -o main.o main.c
+	gcc -g -O0 -fno-stack-protector -no-pie -c -o main.o main.c
 
 httpd.o: httpd.c httpd.h
-	gcc -g -c httpd.c  -o httpd.o 
+	gcc -g -O0 -fno-stack-protector -no-pie -c httpd.c  -o httpd.o 
 
