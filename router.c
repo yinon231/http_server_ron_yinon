@@ -30,7 +30,6 @@ void show_all_password()
     printf("HTTP/1.1 200 OK\r\n\r\n");
     printf("Content-Type: text/plain\r\n");
     printf("\r\n");
-    
     FILE *file = fopen("password.txt", "r");
     if (file == NULL)
     {
@@ -48,8 +47,9 @@ void show_all_password()
             line[len - 1] = '\0';
         }
 
-        fprintf(stderr,"'%s',", line);
+        printf("'%s',\n", line);
     }
+    fclose(file);
   
 }
 // Function to add a new user to the password file
