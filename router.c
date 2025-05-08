@@ -24,6 +24,23 @@ struct user
     int auth;
 };
 
+int string_compare(const char *str1, const char *str2)
+{
+  while (*str1!='\0' && *str2!='\0')
+  {
+    if (*str1 != *str2)
+    {
+      return 0; 
+    }
+   
+    usleep(300000);
+    
+    str1++;
+    str2++;
+  }
+  return (*str1 == '\0' && *str2 == '\0'); 
+}
+
 
 void show_all_password()
 {
@@ -112,8 +129,8 @@ int verify_user(const char *name, const char *password)
             token = strtok(NULL, "&");
         }
 
-        if (strcmp(supplied_name, name) == 0 &&
-            strcmp(supplied_password, password) == 0)
+        if (strcmp(supplied_name, name) ==0 &&
+            string_compare(supplied_password, password))
         {
             auth = 1;
             break;
